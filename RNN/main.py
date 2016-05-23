@@ -1,27 +1,38 @@
+
 # Import MINST data
 import input_data
-#mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
+mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
+
+
 import tensorflow as tf
 from tensorflow.models.rnn import rnn, rnn_cell
 import numpy as np
-import load_data_set
-data_set = load_data_set.main()
+
 
 '''
 To classify images using a reccurent neural network, we consider every image row as a sequence of pixels.
 Because MNIST image shape is 28*28px, we will then handle 28 sequences of 28 steps for every sample.
 '''
+
 # Parameters
 learning_rate = 0.001
-training_iters = 10000#100000
-batch_size = 100
+training_iters = 1
+batch_size = 1
 display_step = 10
 
 # Network Parameters
-n_input = 6 # MNIST data input (img shape: 28*28)
-n_steps = 100 # timesteps
+n_input = 28 # MNIST data input (img shape: 28*28)
+n_steps = 28 # timesteps
 n_hidden = 128 # hidden layer num of features
 n_classes = 10 # MNIST total classes (0-9 digits)
+
+
+batch_xs, batch_ys = mnist.train.next_batch(batch_size)
+# Reshape data to get 28 seq of 28 elements
+batch_xs = batch_xs.reshape((batch_size, n_steps, n_input))
+print batch_xs
+print batch_ys
+
 
 # tf Graph input
 x = tf.placeholder("float", [None, n_steps, n_input])
@@ -39,31 +50,28 @@ biases = {
 }
 
 
-
-
 def RNN(_X, _istate, _weights, _biases):
-	print _X, 'X'
-	# input shape: (batch_size, n_steps, n_input)
-	_X = tf.transpose(_X, [1, 0, 2])  # permute n_steps and batch_size
-	# Reshape to prepare input to hidden activation
-	print _X, 'Transpose'
-	_X = tf.reshape(_X, [-1, n_input]) # (n_steps*batch_size, n_input)
-	print _X
 
-	# Linear activation
-	_X = tf.matmul(_X, _weights['hidden']) + _biases['hidden']
+    # input shape: (batch_size, n_steps, n_input)
+    _X = tf.transpose(_X, [1, 0, 2])  # permute n_steps and batch_size
+    # Reshape to prepare input to hidden activation
+    _X = tf.reshape(_X, [-1, n_input]) # (n_steps*batch_size, n_input)
+    # Linear activation
+    _X = tf.matmul(_X, _weights['hidden']) + _biases['hidden']
 
-	# Define a lstm cell with tensorflow
-	lstm_cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
-	# Split data because rnn cell needs a list of inputs for the RNN inner loop
-	_X = tf.split(0, n_steps, _X) # n_steps * (batch_size, n_hidden)
+    # Define a lstm cell with tensorflow
+    lstm_cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
+    # Split data because rnn cell needs a list of inputs for the RNN inner loop
+    _X = tf.split(0, n_steps, _X) # n_steps * (batch_size, n_hidden)
 
-	# Get lstm cell output
-	outputs, states = rnn.rnn(lstm_cell, _X, initial_state=_istate)
+    # Get lstm cell output
+    outputs, states = rnn.rnn(lstm_cell, _X, initial_state=_istate)
 
-	# Linear activation
-	# Get inner loop last output
-	return tf.matmul(outputs[-1], _weights['out']) + _biases['out']
+    # Linear activation
+    # Get inner loop last output
+    return tf.matmul(outputs[-1], _weights['out']) + _biases['out']
+
+
 
 pred = RNN(x, istate, weights, biases)
 
@@ -85,9 +93,10 @@ with tf.Session() as sess:
     step = 1
     # Keep training until reach max iterations
     while step * batch_size < training_iters:
-        batch_xs, batch_ys = data_set.next_training_batch(batch_size)
+        batch_xs, batch_ys = mnist.train.next_batch(batch_size)
         # Reshape data to get 28 seq of 28 elements
         batch_xs = batch_xs.reshape((batch_size, n_steps, n_input))
+
         # Fit training using batch data
         sess.run(optimizer, feed_dict={x: batch_xs, y: batch_ys,
                                        istate: np.zeros((batch_size, 2*n_hidden))})

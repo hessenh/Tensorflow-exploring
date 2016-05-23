@@ -83,6 +83,7 @@ with tf.Session() as sess:
         # Reshape data to get 28 seq of 28 elements
 
         batch_xs = batch_xs.reshape((batch_size, n_steps, n_input))
+        print batch_xs
         # Fit training using batch data
         sess.run(optimizer, feed_dict={x: batch_xs, y: batch_ys,
                                        istate: np.zeros((batch_size, 2*n_hidden))})
