@@ -1,21 +1,16 @@
 ''''
 From: https://github.com/yankev/tensorflow_example/blob/master/rnn_example.ipynb
 '''
-
-
 import tensorflow as tf
 import numpy as np
 from tensorflow.models.rnn import rnn_cell
 from tensorflow.models.rnn import rnn
 
-#Defining some hyper-params
-num_units = 2       #this is the parameter for input_size in the basic LSTM cell
-input_size = 2      #num_units and input_size will be the same
+input_size = 2
 
-batch_size = 100
+batch_size = 1
 seq_len = 5
 num_hidden = 10
-num_epochs=1
 learning_rate = 0.001
 
 
@@ -45,60 +40,55 @@ def gen_data(min_length=3, max_length=55, n_batch=5):
     return (X,y)
 
 
-
-# tf Graph input
 x = tf.placeholder("float", [None, seq_len, input_size])
 istate = tf.placeholder("float", [None, 2*num_hidden]) #state & cell => 2x n_hidden
 y = tf.placeholder("float", [None, 1])
 
-# Define weights
-weights = {
+
+
+def RNN(x, input_size, num_hidden):
+    weights = {
     'hidden': tf.Variable(tf.random_normal([input_size, num_hidden])), # Hidden layer weights
     'out': tf.Variable(tf.random_normal([num_hidden, 1]))
-}
-biases = {
-    'hidden': tf.Variable(tf.random_normal([num_hidden])),
-    'out': tf.Variable(tf.random_normal([1]))
-}
-X_t = tf.transpose(x, [1, 0, 2])  # permute n_steps and batch_size
-# Reshape to prepare input to hidden activation
-X_r = tf.reshape(X_t, [-1, input_size]) # (n_steps*batch_size, n_input)
+    }
+    biases = {
+        'hidden': tf.Variable(tf.random_normal([num_hidden])),
+        'out': tf.Variable(tf.random_normal([1]))
+    }
 
-X_m = tf.matmul(X_r, weights['hidden']) + biases['hidden']
+    X_t = tf.transpose(x, [1, 0, 2])  # permute n_steps and batch_size
+    # Reshape to prepare input to hidden activation
+    X_r = tf.reshape(X_t, [-1, input_size]) # (n_steps*batch_size, n_input)
 
-X_s = tf.split(0, seq_len, X_m) # n_steps * (batch_size, n_hidden)
+    X_m = tf.matmul(X_r, weights['hidden']) + biases['hidden']
 
-lstm_cell = rnn_cell.BasicLSTMCell(num_hidden, forget_bias=1.0)
+    X_s = tf.split(0, seq_len, X_m) # n_steps * (batch_size, n_hidden)
 
-outputs, states = rnn.rnn(lstm_cell, X_s, dtype=tf.float32)   #note that outputs is a list of seq_len
+    lstm_cell = rnn_cell.BasicLSTMCell(num_hidden, forget_bias=1.0)
 
-prediction = tf.matmul(outputs[-1], weights['out']) + biases['out']                                                            #each element is a tensor of size [batch_size,num_units]
+    outputs, states = rnn.rnn(lstm_cell, X_s, dtype=tf.float32)   #note that outputs is a list of seq_len
+
+    return tf.matmul(outputs[-1], weights['out']) + biases['out']                                                            #each element is a tensor of size [batch_size,num_units]
+
+
+
+prediction = RNN(x, input_size, num_hidden)
 
 cost = tf.reduce_mean(tf.pow(prediction-y,2))
 optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost) # Adam Optimizer
 
-
-
-
-### Execute
-
 with tf.Session() as sess:
 
     tf.initialize_all_variables().run()     #initialize all variables in the model
-
-    for k in range(10000):
-
+    step = 0
+    while step < 10000:
         tempX,output = gen_data(4 ,seq_len,batch_size)
-      
-        #print tempX
-        d = {
-            x: tempX,
+        sess.run(optimizer, feed_dict= {x: tempX,
             y: np.split(output, len(output)),
             istate: np.zeros((batch_size, 2*num_hidden))
-        }
-        sess.run(optimizer, feed_dict= d)
+            })
 
-        if k % 100 == 0:
+        if step % 100 == 0:
 
             #print sess.run(prediction, feed_dict= {x: tempX})
             tempX,output = gen_data(4 ,seq_len,100)
@@ -108,7 +98,11 @@ with tf.Session() as sess:
                 y: output,
                 istate: np.zeros((batch_size, 2*num_hidden))
             }
+            cost_value = np.sum(sess.run(cost, feed_dict=d))
+            print 'Prediction',sess.run(prediction, feed_dict = {x: [tempX[0]]}), 'Actual', output[0][0], 'Cost', cost_value
+        
+        step +=1
 
-            print 'Cost',np.sum(sess.run(cost, feed_dict=d))
-            print 'Prediction',sess.run(prediction, feed_dict = {x: [tempX[0]]}), 'Actual', output[0][0]
-       
+        if cost_value < 0.0001:
+            print 'Steps:', step
+            break
