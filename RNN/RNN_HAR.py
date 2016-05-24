@@ -1,3 +1,11 @@
+'''
+RNN for seq acc data
+One output
+
+
+'''
+
+
 import tensorflow as tf
 import numpy as np
 from tensorflow.models.rnn import rnn_cell
@@ -9,10 +17,10 @@ data_set = load_data_stream.main()
 
 input_size = 6
 output_size = 1
-seq_len = 100
+seq_len = 50
 
 batch_size = 100
-num_hidden = 30
+num_hidden = 3
 learning_rate = 0.001
 
 
@@ -69,13 +77,16 @@ with tf.Session() as sess:
       	tempX = np.split(tempX, batch_size)
         sess.run(optimizer, feed_dict= {x: tempX, y: output})
 
-        if step % 100 == 0:
+        if step % 1000 == 0:
 			print 'Step', step
-			tempX,output = data_set.next_training_batch(batch_size, seq_len)
+			#tempX,output = data_set.next_training_batch(batch_size, seq_len)
+			
+			tempX = data_set._test_x[0:seq_len*8000]
+			output = data_set._test_y[0:seq_len*8000]
 			# Want to have last elent from each sequence
-			output = output[1::seq_len]
+			output = output[0::seq_len]
 			# Split data into sequences
-			tempX = np.split(tempX, batch_size)
+			tempX = np.split(tempX, 8000)
 
 
 			print 'Accuracy',sess.run(accuracy, feed_dict = {x: tempX, y: output})

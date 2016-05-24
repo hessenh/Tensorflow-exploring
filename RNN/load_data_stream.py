@@ -30,7 +30,6 @@ class Data(object):
 
 
 
-
 def main():
 	print "Loading data"
 	TRAIN_SUBJECTS = ['01A']#, '02A', '04A', '20A', '06A', '08A', '09A', '11A', '12A', '13A', '15A', '16A', '19A', '23A']
